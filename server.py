@@ -81,7 +81,6 @@ def user_query(file : UploadFile,request : Request = None):
     )
     prompt_modify = """
     You are an expert search query optimizer for voice-transcribed input.
-
 The input may come from a speech-to-text system and can contain:
 - Misheard words
 - Misspelled words
