@@ -6,3 +6,4 @@ openai-agents
 python-dotenv
 langchain
 langchain-community
+faster-whisper
