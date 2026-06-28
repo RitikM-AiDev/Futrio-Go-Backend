@@ -27,6 +27,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 model1 = WhisperModel(
     "small",
     device="cpu",
