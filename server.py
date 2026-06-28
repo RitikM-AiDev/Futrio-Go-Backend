@@ -21,16 +21,13 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://localhost",      
-        "http://127.0.0.1:5173",],
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:8000",],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.post("/api/admin/futrio/transcribe/at/live/244/futrio")
-def user_query(file : UploadFile,request : Request = None):
-    print("Before loading model")
-    model = WhisperModel(
+model1 = WhisperModel(
     "small",
     device="cpu",
     compute_type="int8",
@@ -39,12 +36,14 @@ def user_query(file : UploadFile,request : Request = None):
     download_root="/tmp/whisper_models" 
 )
 
-    print("After loading model")
+@app.post("/api/admin/futrio/transcribe/at/live/244/futrio")
+def user_query(file : UploadFile,request : Request = None):
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
         f.write(file.file.read())
         temp_path = f.name
     try:
-        segments,info = model.transcribe(
+        segments,info = model1.transcribe(
         temp_path,
         language="en",
         beam_size=5,             
