@@ -13,13 +13,13 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://futrio-go-backend.onrender.com","https://futrio-go-backend.onrender.com/"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.post("/api/query/user")
+@app.post("/api/ask/automate/query/adhd/sjds/user")
 def user_query(data : dict = Body(...),request : Request = None):
     api_key    = request.headers.get("X-API-Key")
     tavily_key = request.headers.get("X-Tavily-Key")
