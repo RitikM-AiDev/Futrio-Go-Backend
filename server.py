@@ -29,7 +29,11 @@ app.add_middleware(
 )
 
 
-model1 = WhisperModel(
+
+
+@app.post("/api/admin/futrio/transcribe/at/live/244/futrio")
+def user_query(file : UploadFile,request : Request = None):
+    model1 = WhisperModel(
     "small",
     device="cpu",
     compute_type="int8",
@@ -37,9 +41,6 @@ model1 = WhisperModel(
     num_workers=1,   
     download_root="/tmp/whisper_models" 
 )
-
-@app.post("/api/admin/futrio/transcribe/at/live/244/futrio")
-def user_query(file : UploadFile,request : Request = None):
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
         f.write(file.file.read())
