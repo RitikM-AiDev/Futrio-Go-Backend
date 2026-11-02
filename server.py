@@ -78,7 +78,7 @@ def user_query(file : UploadFile,request : Request = None):
         )
     model = OpenAIChatCompletionsModel(
         openai_client=client,
-        model="gemini-3.1-flash-lite"
+        model="gemini-3.5-flash-lite"
     )
     prompt_modify = """
     You are an expert search query optimizer for voice-transcribed input.
@@ -179,7 +179,7 @@ def user_query(data : dict = Body(...),request : Request = None):
         )
     model = OpenAIChatCompletionsModel(
         openai_client=client,
-        model="gemini-3.1-flash-lite"
+        model="gemini-3.5-flash-lite"
     )
     prompt_modify = """
     You are a query optimizer. Rewrite the user's request into the best possible search query.
