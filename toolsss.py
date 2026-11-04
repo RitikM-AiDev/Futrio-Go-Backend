@@ -1,28 +1,119 @@
-
 import os
+import json
+import re
 from dotenv import load_dotenv
-load_dotenv()
-from agents import OpenAIChatCompletionsModel,function_tool,Agent,Runner
-from openai import AsyncOpenAI
 from langchain_community.utilities import GoogleSerperAPIWrapper
-from langchain_community.tools import BraveSearch
 from langchain_community.tools.tavily_search import TavilySearchResults
+from google import genai
+from google.genai import types
 
-def tavily_search(query : str):
-    search = TavilySearchResults(max_results=3)
-    result = search.invoke(query)
-    return result
+load_dotenv(override=True)
 
-def serper_search(query : str):
-    search = GoogleSerperAPIWrapper()
-    result = search.results(query)
-    return result
-# result = serper_search("play verappa video song")
-# print(result)
-result1 = tavily_search("play verappa video song")
-print(result1[0]["url"])
-# temp={'searchParameters': {'q': 'play verappa video song', 'gl': 'us', 'hl': 'en', 'type': 'search', 'num': 10, 'engine': 'google'}, 'searchInformation': {'didYouMean': 'play veerappa video song'}, 'organic': [{'title': "Verappa Extended - Video Song | Suriya's Karuppu | RJ Balaji", 'link': 'https://www.youtube.com/watch?v=L5Z-1JlL5ss', 'snippet': 'Presenting the Video Song of "Verappa - Extended" from the Tamil movie "Karuppu". Written & Directed by RJ Balaji Starring Suriya, Trisha, ...', 'date': 'Jun 15, 2026', 'position': 1}, {'title': 'Verappa - Extended (From "Karuppu") - YouTube', 'link': 'https://www.youtube.com/watch?v=CrSqrqG5o-c', 'snippet': "Your browser can't play this video. ... Verappa Extended - Video Song | Suriya's Karuppu | RJ Balaji |@SaiAbhyankkar| Dream Warrior Pictures.", 'date': 'May 12, 2026', 'position': 2}, {'title': 'Verappa (From "Karuppu") - Music Video - Shazam', 'link': 'https://www.shazam.com/en-us/song/1828415545/verappa-from-karuppu/music-video', 'snippet': 'Watch the Verappa (From "Karuppu") music video by Sai Abhyankkar, Arivu & Arun Srinivasan. Song Details · Open in Apple Music. Get up to 1 month free ...', 'position': 3}, {'title': "Verappa Extended - Lyric Video | Suriya's Karuppu | RJ Balaji - Reddit", 'link': 'https://www.reddit.com/r/kollywood/comments/1tbqjq2/verappa_extended_lyric_video_suriyas_karuppu_rj/', 'snippet': '17 votes, 10 comments. Veerappa Extended, Raathu Raasan, Karuppu Kooda Vaa. The placement of these 3 songs is damn crucial to the film cuz ...', 'date': 'May 13, 2026', 'position': 4}, {'title': '#Verappa Video Song is OUT NOW ⚡️   Turn up the ... - Instagram', 'link': 'https://www.instagram.com/reel/DZm6PCGMS0S/', 'snippet': 'Presenting the Video Song of "Verappa - Extended" from the Tamil movie "Karuppu". Written & Directed by RJ Balaji Starring Suriya, Trisha, ...', 'date': 'Jun 15, 2026', 'position': 5}, {'title': 'Verappa - Extended - YouTube', 'link': 'https://www.youtube.com/watch?v=fS6Bkf08Hkc', 'snippet': "Your browser can't play this video. ... Verappa Extended - Video Song | Suriya's Karuppu | RJ Balaji |@SaiAbhyankkar| Dream Warrior Pictures.", 'date': 'May 25, 2026', 'position': 6}, {'title': 'Verappa - Extended (From "Karuppu") - Album by Sai Abhyankkar', 'link': 'https://music.youtube.com/playlist?list=OLAK5uy_mZNjxv5gKiEKWMJ3EsS8u_IgDyA36HsLs', 'snippet': 'Listen to Verappa - Extended (From "Karuppu") by Sai Abhyankkar, Arivu, and Arun Srinivasan on YouTube Music - a dedicated music app with official songs, ...', 'position': 7}, {'title': 'Karuppu | Song - Verappa | Tamil Video Songs - The Times of India', 'link': 'https://timesofindia.indiatimes.com/videos/entertainment/music/tamil/karuppu-song-verappa/videoshow/131745650.cms', 'snippet': "Watch the song 'Verappa' from Tamil movie 'Karuppu' starring Suriya, Trisha and Indrans. 'Verappa' is sung by SaiAbhyankkar and Arivu and ...", 'date': 'Jun 15, 2026', 'position': 8}, {'title': "Verappa - Video Song | Suriya's Karuppu | RJ Balaji - Reddit", 'link': 'https://www.reddit.com/r/kollywood/comments/1u6fe35/verappa_video_song_suriyas_karuppu_rj_balaji/', 'snippet': "Verappa Extended - Lyric Video | Suriya's Karuppu | RJ Balaji | @SaiAbhyankkar | Dream Warrior · r/kollywood - Verappa Extended - Lyric Video | ...", 'position': 9}, {'title': 'Verappa (From "Karuppu") - JioSaavn - Listen to New & Old Indian ...', 'link': 'https://www.jiosaavn.com/song/verappa-from-karuppu/IgcPVhYBUHw', 'snippet': 'Listen to Verappa (From "Karuppu") online. Verappa (From "Karuppu") is a Tamil language song and is sung by Sai Abhyankkar and Arivu. Verappa (From "Karuppu"), ...', 'position': 10}], 'relatedSearches': [{'query': 'Verappa song'}, {'query': 'Verappa song Lyrics'}, {'query': 'Karupar song singer'}, {'query': 'Sai Abhyankkar Karuppu'}, {'query': 'God Mode songs'}, {'query': 'Surya New Song'}, {'query': 'Surya Song'}, {'query': 'Gana Muthu God Mode'}], 'credits': 1}
+def tavily_search(query: str, tavily_api_key: str = None):
+    key = tavily_api_key or os.getenv("TAVILY_API_KEY") or os.getenv("tavily_api_key")
+    if key:
+        search = TavilySearchResults(max_results=3, tavily_api_key=key)
+    else:
+        search = TavilySearchResults(max_results=3)
+    return search.invoke(query)
 
-# print(temp['organic'][0]["link"])
+def serper_search(query: str, serper_api_key: str = None):
+    key = serper_api_key or os.getenv("SERPER_API_KEY") or os.getenv("serper_api_key")
+    if key:
+        search = GoogleSerperAPIWrapper(serper_api_key=key)
+    else:
+        search = GoogleSerperAPIWrapper()
+    return search.results(query)
 
-# [{'title': "Verappa Extended - Video Song | Suriya's Karuppu | RJ Balaji |@SaiAbhyankkar| Dream Warrior Pictures", 'url': 'https://www.youtube.com/watch?v=L5Z-1JlL5ss', 'content': '# Verappa Extended - Video Song | Suriya\'s Karuppu | RJ Balaji |@SaiAbhyankkar| Dream Warrior Pictures\n## Think Music India\n22600000 subscribers\n72252 likes\n\n### Description\n3525110 views\nPosted: 15 Jun 2026\nPresenting the Video Song of "Verappa - Extended" from the Tamil movie "Karuppu". Written & Directed by RJ Balaji Starring Suriya, Trisha, Indrans, Natty, Mansoor Ali Khan, Swasika, Sshivadha, Anagha Maya Ravi, Supreeth Reddy and Others\n\nSong Credits: [...] Audio Label : Think Music\n\n© 2026 SPI Music Pvt. Ltd.\n\nFor All Latest Updates:\nWebsite: \nSubscribe to us on: \nFollow us on: \nLike us on: \nFollow us on: \n\n#verappa #saiabhyankkar #karuppu #suriya #rjbalaji  #verappavideosong\n\n1884 comments\n### Transcript:\nही [संगीत] [संगीत] [संगीत] ल सदा [संगीत] [संगीत] [संगीत] की मोर [संगीत] [गाना गाने की आवाज़] [संगीत] बना [संगीत] हरे [संगीत] [संगीत] [संगीत] है [संगीत] राम [संगीत] [संगीत] [संगीत] [संगीत] बना [संगीत] [संगीत] [संगीत] [संगीत] [संगीत] [संगीत] [संगीत] बना [...] Song Credits:\n\nMusic Composed and Produced by @SaiAbhyankkar \nSingers: @SaiAbhyankkar , Arivu\nLyrics :  Arun Srinivasan\nAdditional Vocals : Mahesh Vinayakram, Arun Kaundinya, Yogi Sekar\nRap : Theo \nSynth , Keys and Synth Bass : @SaiAbhyankkar \nAdditional Rhythm : Kalyan\nKumbaaara Rhythm : Yanka Percussion Group\nGuitars : Godfray Immanuel \nMoorsing : Mahesh Vinayakram\nNavtar : Vishnu \n\nThe Indian choral Ensemble:\n\nVanathi Suresh\nSivaranjini Chandramouli\nShri Badhra K A\nYazhini\nBavathayini Nagarajan\nVarsha R Mallya\n\nAll Recorded and Produced at Yolo Rechords, Chennai\nCreative Consultant : Adesh Krishna\n\nMixed by @SaiAbhyankkar  at YOLO records \nMastered by Rupendar Venkatesh\n\nMovie Credits :', 'score': 0.7613083}, {'title': 'Verappa - Extended (From "Karuppu") - YouTube', 'url': 'https://www.youtube.com/watch?v=CrSqrqG5o-c', 'content': "Your browser can't play this video. ... Verappa Extended - Video Song | Suriya's Karuppu | RJ Balaji |@SaiAbhyankkar| Dream Warrior Pictures.", 'score': 0.7409441}, {'title': 'Verappa (From "Karuppu") - Music Video by Sai Abhyankkar, Arivu & Arun Srinivasan - Shazam', 'url': 'https://www.shazam.com/en-us/song/1828415545/verappa-from-karuppu/music-video', 'content': '## Shazam Footer\n\n### Company\n\n### Legal\n\nGoogle Play Store\nApple App Store\nChrome Web Store\nGalaxy Store\n\n### Follow Us\n\nLoading...\n\nWatch Verappa (From "Karuppu") on YouTube on YouTube") [...] ## Music Video\n\nartist\n\n# Verappa (From "Karuppu") - Music Video\n\nMusic Video\n\nTamil\n\n## Watch the Verappa (From "Karuppu") music video by Sai Abhyankkar, Arivu & Arun Srinivasan\n\n## Featured In\n\nListen to Verappa (From "Karuppu") - Single by Sai Abhyankkar, Arivu & Arun Srinivasan\n\n### Verappa (From "Karuppu") - Single\n\n### Sai Abhyankkar Highlights [...] ### Sai Abhyankkar Highlights\n\nKannukulla (From "Dude") by Sai Abhyankkar, Jonita Gandhi & Adesh Krishna\nSingari (From "Dude") by Sai Abhyankkar, Pradeep Ranganathan, Sai Smriti & Semv.iii\nNallaru Po (From "Dude") by Sai Abhyankkar, Tippu, Mohit Chauhan & Vivek\nOorum Blood (From "Dude") by Sai Abhyankkar, Paal Dabba, bebhumika & Deepthi Suresh\nVizhi Veekura (From "Think Indie") by Sai Abhyankkar, Sai Smriti & Adesh Krishna\nSithira Puthiri (From "Think Indie") by Sai Abhyankkar\nAasa Kooda (From "Think Indie") by Sai Abhyankkar, Sai Smriti & Sathyan Ilanko\nKatchi Sera (From "Think Indie") by Sai Abhyankkar & Adesh Krishna\n\n### Discover More About Sai Abhyankkar\n\nListen to Sai Abhyankkar, Arivu & Arun Srinivasan, watch music videos, read bio, see tour dates & more!\n\n## Shazam Footer', 'score': 0.6690754}]
+def run_url_generator_agent(query: str, gemini_api_key: str = None, serper_key: str = None, tavily_key: str = None):
+    api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("X-API-Key")
+    client = genai.Client(api_key=api_key)
+
+    def google_search(search_query: str) -> str:
+        try:
+            return str(serper_search(search_query, serper_api_key=serper_key))
+        except Exception as err:
+            return f"Error: {err}"
+
+    def tavily_web_search(search_query: str) -> str:
+        try:
+            return str(tavily_search(search_query, tavily_api_key=tavily_key))
+        except Exception as err:
+            return f"Error: {err}"
+
+    system_instruction = """You are Futrio Go, an AI agent for desktop and browser actions.
+Your task is to analyze the user query, use Google Search and Tavily Search tools when required, and return a verified URL (if an action such as playing a song/video or opening a website is requested) and an answer/reply explaining what you are doing or answering the user request.
+Rules:
+1. For music or video playback requests, find and return the official YouTube watch URL (e.g. https://www.youtube.com/watch?v=...).
+2. For website navigation or opening requests, return the exact official homepage or target URL.
+3. For questions, factual lookups, or casual conversation, provide the direct answer in the reply and set url to "None".
+4.If User ask you to open whatsapp and send a message you can generate url for that request
+4. You must respond ONLY with a valid JSON object in this format:
+{
+    "url": "the exact URL or None",
+    "reply": "the answer or confirmation for the user"
+}"""
+
+    models_to_try = [
+        "gemini-3.5-flash-lite",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash"
+    ]
+    response = None
+    last_error = None
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=query,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    tools=[google_search, tavily_web_search],
+                    temperature=0.2,
+                )
+            )
+            if response:
+                break
+        except Exception as err:
+            last_error = err
+            err_str = str(err).lower()
+            if "not found" in err_str or "404" in err_str or "unknown model" in err_str or "unsupported" in err_str:
+                continue
+            break
+
+    url = "None"
+    reply = ""
+
+    if response and response.text:
+        text = response.text.strip()
+        match = re.search(r"\{[\s\S]*\}", text)
+        if match:
+            try:
+                data = json.loads(match.group(0))
+                if isinstance(data, dict):
+                    url = data.get("url") or "None"
+                    reply = data.get("reply") or ""
+            except Exception:
+                pass
+
+        if not reply:
+            urls = re.findall(r'https?://[^\s<>"\')]+', text)
+            if urls:
+                url = urls[0]
+                reply = text.replace(url, "").strip() or f"Found URL: {url}"
+            else:
+                url = "None"
+                reply = text
+
+    if not reply:
+        if last_error:
+            reply = f"Error: {last_error}"
+        else:
+            reply = "I have completed the task assigned to me." if url != "None" else "No response generated."
+
+    if not url or url.strip().lower() in ("null", "none", "n/a", ""):
+        url = "None"
+
+    return url, reply

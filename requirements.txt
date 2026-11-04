@@ -8,3 +8,7 @@ langchain
 langchain-community
 faster-whisper
 python-multipart
+groq
+google-genai
+tavily-python
+google-search-results
