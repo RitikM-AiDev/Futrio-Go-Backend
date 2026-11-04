@@ -1,14 +1,8 @@
 fastapi
-uvicorn
-requests
-openai
-openai-agents
-python-dotenv
-langchain
-langchain-community
-faster-whisper
+uvicorn[standard]
 python-multipart
+python-dotenv
 groq
 google-genai
+langchain-community
 tavily-python
-google-search-results
