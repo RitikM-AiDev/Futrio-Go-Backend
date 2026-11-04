@@ -23,6 +23,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/health")
+def health_check():
+    return {
+        "status" : "ok"
+    }
+    
 
 @app.post("/api/admin/futrio/transcribe/at/live/244/futrio")
 async def user_query(file: UploadFile, request: Request = None):
