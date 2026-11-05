@@ -26,9 +26,8 @@ app.add_middleware(
 @app.get("/health")
 def health_check():
     return {
-        "status" : "ok"
+        "status": "ok"
     }
-    
 
 @app.post("/api/admin/futrio/transcribe/at/live/244/futrio")
 async def user_query(file: UploadFile, request: Request = None):
@@ -36,17 +35,21 @@ async def user_query(file: UploadFile, request: Request = None):
     gemini_key = None
     tavily_key = None
     serper_key = None
+    language = None
 
     if request:
         groq_key = request.headers.get("X-Groq-Key")
         gemini_key = request.headers.get("X-API-Key")
         tavily_key = request.headers.get("X-Tavily-Key")
         serper_key = request.headers.get("X-Serper-Key")
+        language = request.headers.get("X-Language")
 
     groq_key = groq_key or os.getenv("GROQ_API_KEY") or os.getenv("groq_api_key")
     gemini_key = gemini_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("X-API-Key")
     tavily_key = tavily_key or os.getenv("TAVILY_API_KEY") or os.getenv("tavily_api_key")
     serper_key = serper_key or os.getenv("SERPER_API_KEY") or os.getenv("serper_api_key")
+
+    print(f"API Key: {gemini_key}")
 
     contents = await file.read()
     suffix = os.path.splitext(file.filename or "")[1] or ".wav"
@@ -56,18 +59,29 @@ async def user_query(file: UploadFile, request: Request = None):
 
     try:
         groq_client = Groq(api_key=groq_key)
+        transcription_kwargs = {
+            "model": "whisper-large-v3",
+            "response_format": "verbose_json",
+            "prompt": "Multilingual speech recognition in any language: English, Tamil, Hindi, Telugu, Malayalam, Kannada, Bengali, Marathi, Spanish, French, German, Japanese, and others."
+        }
+        if language:
+            transcription_kwargs["language"] = language
+
         with open(temp_path, "rb") as audio:
-            result = groq_client.audio.transcriptions.create(
-                file=audio,
-                model="whisper-large-v3-turbo",
-                response_format="text"
-            )
+            transcription_kwargs["file"] = audio
+            try:
+                result = groq_client.audio.transcriptions.create(**transcription_kwargs)
+            except Exception:
+                transcription_kwargs["model"] = "whisper-large-v3-turbo"
+                result = groq_client.audio.transcriptions.create(**transcription_kwargs)
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-    query_text = result if isinstance(result, str) else getattr(result, "text", str(result))
+    query_text = getattr(result, "text", str(result)) if not isinstance(result, str) else result
     query_text = query_text.strip() if query_text else ""
+    detected_lang = getattr(result, "language", None)
+    print(f"Recognized Speech ({detected_lang}): {query_text}")
 
     if not query_text:
         return {
@@ -79,9 +93,10 @@ async def user_query(file: UploadFile, request: Request = None):
         query=query_text,
         gemini_api_key=gemini_key,
         serper_key=serper_key,
-        tavily_key=tavily_key
+        tavily_key=tavily_key,
+        language=detected_lang
     )
-    print(url,reply)
+    print(url, reply)
 
     return {
         "url": url,
@@ -96,6 +111,9 @@ async def text_query(request: Request):
     gemini_key = request.headers.get("X-API-Key") or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("X-API-Key")
     tavily_key = request.headers.get("X-Tavily-Key") or os.getenv("TAVILY_API_KEY") or os.getenv("tavily_api_key")
     serper_key = request.headers.get("X-Serper-Key") or os.getenv("SERPER_API_KEY") or os.getenv("serper_api_key")
+    language = request.headers.get("X-Language")
+
+    print(f"API Key: {gemini_key}")
 
     if not query_text:
         return {
@@ -107,10 +125,16 @@ async def text_query(request: Request):
         query=query_text,
         gemini_api_key=gemini_key,
         serper_key=serper_key,
-        tavily_key=tavily_key
+        tavily_key=tavily_key,
+        language=language
     )
+    print(url, reply)
 
     return {
         "url": url,
         "reply": reply
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)

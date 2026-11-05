@@ -1,76 +1,90 @@
 import os
 import json
 import re
+import urllib.parse
+import warnings
 from dotenv import load_dotenv
 from langchain_community.utilities import GoogleSerperAPIWrapper
 from langchain_community.tools.tavily_search import TavilySearchResults
 from google import genai
 from google.genai import types
 
+warnings.filterwarnings("ignore")
 load_dotenv(override=True)
 
 def tavily_search(query: str, tavily_api_key: str = None):
     key = tavily_api_key or os.getenv("TAVILY_API_KEY") or os.getenv("tavily_api_key")
     if key:
         search = TavilySearchResults(max_results=3, tavily_api_key=key)
+        print(search)
     else:
         search = TavilySearchResults(max_results=3)
+        print(search)
     return search.invoke(query)
 
-def serper_search(query: str, serper_api_key: str = None):
-    key = serper_api_key or os.getenv("SERPER_API_KEY") or os.getenv("serper_api_key")
-    if key:
-        search = GoogleSerperAPIWrapper(serper_api_key=key)
-    else:
-        search = GoogleSerperAPIWrapper()
-    return search.results(query)
-
-def run_url_generator_agent(query: str, gemini_api_key: str = None, serper_key: str = None, tavily_key: str = None):
+def run_url_generator_agent(query: str, gemini_api_key: str = None, serper_key: str = None, tavily_key: str = None, language: str = None):
     api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("X-API-Key")
     client = genai.Client(api_key=api_key)
 
-    def google_search(search_query: str) -> str:
+    def youtube_search(video_title: str) -> str:
         try:
-            return str(serper_search(search_query, serper_api_key=serper_key))
+            res1 = str(tavily_search(f"{video_title} site:youtube.com/watch", tavily_api_key=tavily_key))
+            print(res1)
+            return res1
         except Exception as err:
             return f"Error: {err}"
 
     def tavily_web_search(search_query: str) -> str:
         try:
-            return str(tavily_search(search_query, tavily_api_key=tavily_key))
+            res = str(tavily_search(search_query, tavily_api_key=tavily_key))
+            print(res)
+            return res
         except Exception as err:
             return f"Error: {err}"
 
     system_instruction = """You are Futrio Go, an AI agent for desktop and browser actions.
-Your task is to analyze the user query, use Google Search and Tavily Search tools when required, and return a verified URL (if an action such as playing a song/video or opening a website is requested) and an answer/reply explaining what you are doing or answering the user request.
+You are universally multilingual and can understand and communicate in ANY language spoken or written by the user (English, Tamil, Hindi, Telugu, Malayalam, Kannada, Bengali, Marathi, Spanish, French, German, Japanese, Chinese, Arabic, etc.).
+Your task is to analyze the user query in whatever language it is presented, use the search tools when required, and return a verified URL (if an action such as playing a song/video or opening a website is requested) and an answer/reply in the user's language.
+
 Rules:
-1. For music or video playback requests, find and return the official YouTube watch URL (e.g. https://www.youtube.com/watch?v=...).
-2. For website navigation or opening requests, return the exact official homepage or target URL.
-3. For questions, factual lookups, or casual conversation, provide the direct answer in the reply and set url to "None".
-4.If User ask you to open whatsapp and send a message you can generate url for that request
-4. You must respond ONLY with a valid JSON object in this format:
+1. Multilingual Understanding & Intent:
+- Accurately determine the user's intent in any language.
+- For video, song, music, or YouTube requests in ANY language: You MUST find and return an exact, playable YouTube watch URL (format: https://www.youtube.com/watch?v=... or https://youtu.be/...). Always use the youtube_search tool. NEVER return a YouTube search results page URL (https://www.youtube.com/results?search_query=...). NEVER return news articles, blogs, tools, or discussion forums for video requests. The URL must be the actual video that plays.
+- For website navigation or opening requests: Return the exact official homepage or target URL.
+- For questions, factual lookups, or casual conversation: Provide the direct answer in the reply and set url to "None".
+- For WhatsApp messaging requests: Generate the WhatsApp URL (https://wa.me/<phone>?text=<encoded_text>).
+
+2. Language Consistency:
+- Always respond in the EXACT same language that the user spoke or wrote in.
+- If the user query is in Tamil, reply in Tamil.
+- If the user query is in Telugu, reply in Telugu.
+- If the user query is in Hindi, reply in Hindi.
+- If the user query is in English, reply in English.
+- If the user query is in Spanish, French, German, Malayalam, Kannada, Japanese, or any other language, reply in that exact language.
+- Never switch to an unintended language.
+
+3. Output Format:
+You must respond ONLY with a valid JSON object in this format:
 {
     "url": "the exact URL or None",
-    "reply": "the answer or confirmation for the user"
+    "reply": "the answer or confirmation in the user's language"
 }"""
 
     models_to_try = [
         "gemini-3.5-flash-lite",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash"
+        "gemini-3.5-flash"
     ]
+    prompt_input = f"Spoken Language: {language}\nUser Request: {query}" if language else query
     response = None
     last_error = None
     for model_name in models_to_try:
         try:
             response = client.models.generate_content(
                 model=model_name,
-                contents=query,
+                contents=prompt_input,
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction,
-                    tools=[google_search, tavily_web_search],
+                    tools=[youtube_search, tavily_web_search],
                     temperature=0.2,
                 )
             )
@@ -79,7 +93,7 @@ Rules:
         except Exception as err:
             last_error = err
             err_str = str(err).lower()
-            if "not found" in err_str or "404" in err_str or "unknown model" in err_str or "unsupported" in err_str:
+            if "not found" in err_str or "404" in err_str or "503" in err_str or "unknown model" in err_str or "unsupported" in err_str:
                 continue
             break
 
@@ -106,6 +120,31 @@ Rules:
             else:
                 url = "None"
                 reply = text
+
+    if "results?search_query=" in url:
+        url = "None"
+
+    is_video_url = url != "None" and ("youtube.com/watch" in url or "youtu.be/" in url)
+    if not is_video_url:
+        video_markers = (
+            "video", "youtube", "play", "watch", "song", "music", "track",
+            "paatu", "paadal", "padam", "pattu", "geetham", "gana", "gaana",
+            "cancion", "musica", "chanson", "lied", "uta",
+            "பாட்டு", "பாடல்", "வீடியோ", "படம்",
+            "गाना", "गीत", "वीडियो", "పాట", "వీడియో"
+        )
+        if any(k in query.lower() for k in video_markers):
+            raw_text = str(response.text) if response else ""
+            yt_urls = re.findall(r'https?://(?:www\.)?youtube\.com/watch\?v=[a-zA-Z0-9_-]+|https?://youtu\.be/[a-zA-Z0-9_-]+', raw_text)
+            if yt_urls:
+                url = yt_urls[0]
+            else:
+                direct_search = youtube_search(query) or ""
+                found = re.findall(r'https?://(?:www\.)?youtube\.com/watch\?v=[a-zA-Z0-9_-]+|https?://youtu\.be/[a-zA-Z0-9_-]+', str(direct_search))
+                if found:
+                    url = found[0]
+                else:
+                    url = "None"
 
     if not reply:
         if last_error:

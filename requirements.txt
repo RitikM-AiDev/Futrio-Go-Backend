@@ -6,3 +6,4 @@ groq
 google-genai
 langchain-community
 tavily-python
+pyinstaller
