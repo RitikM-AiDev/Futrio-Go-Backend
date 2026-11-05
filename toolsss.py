@@ -23,6 +23,34 @@ def tavily_search(query: str, tavily_api_key: str = None):
     return search.invoke(query)
 
 def run_url_generator_agent(query: str, gemini_api_key: str = None, serper_key: str = None, tavily_key: str = None, language: str = None):
+    q_lower = query.lower().strip()
+    is_play_intent = any(w in q_lower for w in ("play", "watch", "song", "paatu", "paadal", "track", "music"))
+    if not is_play_intent:
+        is_open_intent = any(w in q_lower for w in ("open", "go to", "launch", "start", "visit", "pannu"))
+        if is_open_intent:
+            direct_sites = {
+                "youtube": "https://www.youtube.com",
+                "google": "https://www.google.com",
+                "github": "https://github.com",
+                "gmail": "https://mail.google.com",
+                "instagram": "https://www.instagram.com",
+                "whatsapp": "https://web.whatsapp.com",
+                "twitter": "https://x.com",
+                "reddit": "https://www.reddit.com",
+                "chatgpt": "https://chatgpt.com",
+                "spotify": "https://open.spotify.com",
+                "netflix": "https://www.netflix.com",
+                "amazon": "https://www.amazon.com",
+                "facebook": "https://www.facebook.com",
+                "linkedin": "https://www.linkedin.com"
+            }
+            for site_name, site_url in direct_sites.items():
+                if site_name in q_lower:
+                    reply_text = f"Opening {site_name.capitalize()}."
+                    if language in ("ta", "Tamil"):
+                        reply_text = f"{site_name.capitalize()} திறக்கிறேன்."
+                    return site_url, reply_text
+
     api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("X-API-Key")
     client = genai.Client(api_key=api_key)
 
@@ -46,12 +74,11 @@ def run_url_generator_agent(query: str, gemini_api_key: str = None, serper_key: 
 Your task is to analyze the user query in whatever language it is presented, use the search tools when required, and return a verified URL (if an action such as playing a song/video or opening a website is requested) and an answer/reply in the user's language.
 
 Rules:
-1. Multilingual & Tanglish Understanding:
-- Recognize Tanglish (Tamil code-mixed with English in Latin script, e.g. 'open pannu', 'play pannu', 'paatu podu', 'sollu'). 'pannu' is Tamil meaning 'do', 'open', or 'play'.
-- When the user asks to open a website (e.g. 'youtube open pannu', 'open youtube', 'google open pannu'): return the official website homepage URL (e.g. https://www.youtube.com).
-- For specific video, song, music, or YouTube video requests: Find and return an exact, playable YouTube watch URL (format: https://www.youtube.com/watch?v=... or https://youtu.be/...). Always use the youtube_search tool. NEVER return a YouTube search results page URL (https://www.youtube.com/results?search_query=...). NEVER return news articles, blogs, tools, or discussion forums. The URL must be the actual video that plays.
-- For questions, factual lookups, or casual conversation: Provide the direct answer in the reply and set url to "None".
-- For WhatsApp messaging requests: Generate the WhatsApp URL (https://wa.me/<phone>?text=<encoded_text>).
+1. Intent Classification:
+- Opening Websites / Apps: When the user asks to open a website or platform (e.g. 'open youtube', 'youtube open pannu', 'open google', 'github open pannu'), return the official homepage URL (e.g. https://www.youtube.com). DO NOT search for or return video tutorials on how to open a website!
+- Playing Videos or Songs: Only when the user wants to play/watch specific content, songs, or videos (e.g. 'play verappa song', 'watch trailer'), use youtube_search to find and return the exact playable YouTube watch URL (format: https://www.youtube.com/watch?v=... or https://youtu.be/...). NEVER return a search results URL (https://www.youtube.com/results?search_query=...).
+- Questions or Chat: Return 'None' for url and give a clear answer in reply.
+- WhatsApp Messages: Return the WhatsApp URL (https://wa.me/<phone>?text=<encoded_text>).
 
 2. Language Consistency:
 - NEVER reply in Hindi unless the user query is explicitly in Hindi and written in Devanagari script.
@@ -151,9 +178,23 @@ You must respond ONLY with a valid JSON object in this format:
 
     if not reply:
         if last_error:
-            reply = f"Error: {last_error}"
+            err_msg = str(last_error).lower()
+            if "429" in err_msg or "resource_exhausted" in err_msg or "quota" in err_msg:
+                if language in ("ta", "Tamil"):
+                    reply = "உங்கள் API quota வரம்பு முடிந்துவிட்டது (Error 429). புதிய Gmail கணக்கைத் தொடங்கி புதிய Gemini API key-ஐ மாற்றவும் அல்லது கூடுதல் வரம்புகளுக்கு சந்தா பெறவும்."
+                else:
+                    reply = "You have exceeded your current API quota limit (Error 429). Please update your API key by creating a new key with a new Gmail account, or upgrade your plan to get higher limits."
+            else:
+                reply = f"Error: {last_error}"
         else:
             reply = "I have completed the task assigned to me." if url != "None" else "No response generated."
+
+    err_check = reply.lower()
+    if "429" in err_check or "resource_exhausted" in err_check or "quota" in err_check:
+        if language in ("ta", "Tamil"):
+            reply = "உங்கள் API quota வரம்பு முடிந்துவிட்டது (Error 429). புதிய Gmail கணக்கைத் தொடங்கி புதிய Gemini API key-ஐ மாற்றவும் அல்லது கூடுதல் வரம்புகளுக்கு சந்தா பெறவும்."
+        else:
+            reply = "You have exceeded your current API quota limit (Error 429). Please update your API key by creating a new key with a new Gmail account, or upgrade your plan to get higher limits."
 
     if not url or url.strip().lower() in ("null", "none", "n/a", ""):
         url = "None"

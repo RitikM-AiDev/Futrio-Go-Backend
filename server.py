@@ -98,13 +98,22 @@ async def user_query(file: UploadFile, request: Request = None):
             "reply": "No speech detected in audio file."
         }
 
-    url, reply = run_url_generator_agent(
-        query=query_text,
-        gemini_api_key=gemini_key,
-        serper_key=serper_key,
-        tavily_key=tavily_key,
-        language=detected_lang
-    )
+    try:
+        url, reply = run_url_generator_agent(
+            query=query_text,
+            gemini_api_key=gemini_key,
+            serper_key=serper_key,
+            tavily_key=tavily_key,
+            language=detected_lang
+        )
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if "429" in err_msg or "resource_exhausted" in err_msg or "quota" in err_msg:
+            url = "None"
+            reply = "You have exceeded your current API quota limit (Error 429). Please update your API key by creating a new key with a new Gmail account, or upgrade your plan to get higher limits."
+        else:
+            url = "None"
+            reply = f"Error: {exc}"
     print(url, reply)
 
     return {
@@ -137,13 +146,22 @@ async def text_query(request: Request):
     elif language in ("hi", "hindi", "ur", "urdu") and not is_devanagari:
         language = None
 
-    url, reply = run_url_generator_agent(
-        query=query_text,
-        gemini_api_key=gemini_key,
-        serper_key=serper_key,
-        tavily_key=tavily_key,
-        language=language
-    )
+    try:
+        url, reply = run_url_generator_agent(
+            query=query_text,
+            gemini_api_key=gemini_key,
+            serper_key=serper_key,
+            tavily_key=tavily_key,
+            language=language
+        )
+    except Exception as exc:
+        err_msg = str(exc).lower()
+        if "429" in err_msg or "resource_exhausted" in err_msg or "quota" in err_msg:
+            url = "None"
+            reply = "You have exceeded your current API quota limit (Error 429). Please update your API key by creating a new key with a new Gmail account, or upgrade your plan to get higher limits."
+        else:
+            url = "None"
+            reply = f"Error: {exc}"
     print(url, reply)
 
     return {
