@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, UploadFile
@@ -62,7 +63,7 @@ async def user_query(file: UploadFile, request: Request = None):
         transcription_kwargs = {
             "model": "whisper-large-v3",
             "response_format": "verbose_json",
-            "prompt": "Multilingual speech recognition in any language: English, Tamil, Hindi, Telugu, Malayalam, Kannada, Bengali, Marathi, Spanish, French, German, Japanese, and others."
+            "prompt": "Tamil, Tanglish, English. Tanglish phrases: open pannu, play pannu, paatu podu, enna panra, sollu."
         }
         if language:
             transcription_kwargs["language"] = language
@@ -81,6 +82,14 @@ async def user_query(file: UploadFile, request: Request = None):
     query_text = getattr(result, "text", str(result)) if not isinstance(result, str) else result
     query_text = query_text.strip() if query_text else ""
     detected_lang = getattr(result, "language", None)
+
+    is_devanagari = bool(re.search(r"[\u0900-\u097F]", query_text))
+    tanglish_terms = ("pannu", "podu", "paatu", "paadal", "padam", "enna", "sollu", "vaanga", "ponga", "irukku", "illa", "illai", "kudu", "kodu", "eduthu", "paru", "kaatu", "vada", "machan", "thalaiva")
+    if any(t in query_text.lower() for t in tanglish_terms):
+        detected_lang = "ta"
+    elif detected_lang in ("hi", "hindi", "ur", "urdu") and not is_devanagari:
+        detected_lang = None
+
     print(f"Recognized Speech ({detected_lang}): {query_text}")
 
     if not query_text:
@@ -120,6 +129,13 @@ async def text_query(request: Request):
             "url": "None",
             "reply": "No query provided."
         }
+
+    is_devanagari = bool(re.search(r"[\u0900-\u097F]", query_text))
+    tanglish_terms = ("pannu", "podu", "paatu", "paadal", "padam", "enna", "sollu", "vaanga", "ponga", "irukku", "illa", "illai", "kudu", "kodu", "eduthu", "paru", "kaatu", "vada", "machan", "thalaiva")
+    if any(t in query_text.lower() for t in tanglish_terms):
+        language = "ta"
+    elif language in ("hi", "hindi", "ur", "urdu") and not is_devanagari:
+        language = None
 
     url, reply = run_url_generator_agent(
         query=query_text,

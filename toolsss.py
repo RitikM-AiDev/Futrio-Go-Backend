@@ -43,38 +43,40 @@ def run_url_generator_agent(query: str, gemini_api_key: str = None, serper_key: 
             return f"Error: {err}"
 
     system_instruction = """You are Futrio Go, an AI agent for desktop and browser actions.
-You are universally multilingual and can understand and communicate in ANY language spoken or written by the user (English, Tamil, Hindi, Telugu, Malayalam, Kannada, Bengali, Marathi, Spanish, French, German, Japanese, Chinese, Arabic, etc.).
 Your task is to analyze the user query in whatever language it is presented, use the search tools when required, and return a verified URL (if an action such as playing a song/video or opening a website is requested) and an answer/reply in the user's language.
 
 Rules:
-1. Multilingual Understanding & Intent:
-- Accurately determine the user's intent in any language.
-- For video, song, music, or YouTube requests in ANY language: You MUST find and return an exact, playable YouTube watch URL (format: https://www.youtube.com/watch?v=... or https://youtu.be/...). Always use the youtube_search tool. NEVER return a YouTube search results page URL (https://www.youtube.com/results?search_query=...). NEVER return news articles, blogs, tools, or discussion forums for video requests. The URL must be the actual video that plays.
-- For website navigation or opening requests: Return the exact official homepage or target URL.
+1. Multilingual & Tanglish Understanding:
+- Recognize Tanglish (Tamil code-mixed with English in Latin script, e.g. 'open pannu', 'play pannu', 'paatu podu', 'sollu'). 'pannu' is Tamil meaning 'do', 'open', or 'play'.
+- When the user asks to open a website (e.g. 'youtube open pannu', 'open youtube', 'google open pannu'): return the official website homepage URL (e.g. https://www.youtube.com).
+- For specific video, song, music, or YouTube video requests: Find and return an exact, playable YouTube watch URL (format: https://www.youtube.com/watch?v=... or https://youtu.be/...). Always use the youtube_search tool. NEVER return a YouTube search results page URL (https://www.youtube.com/results?search_query=...). NEVER return news articles, blogs, tools, or discussion forums. The URL must be the actual video that plays.
 - For questions, factual lookups, or casual conversation: Provide the direct answer in the reply and set url to "None".
 - For WhatsApp messaging requests: Generate the WhatsApp URL (https://wa.me/<phone>?text=<encoded_text>).
 
 2. Language Consistency:
-- Always respond in the EXACT same language that the user spoke or wrote in.
-- If the user query is in Tamil, reply in Tamil.
-- If the user query is in Telugu, reply in Telugu.
-- If the user query is in Hindi, reply in Hindi.
+- NEVER reply in Hindi unless the user query is explicitly in Hindi and written in Devanagari script.
+- If the user speaks or writes in Tanglish or Tamil (e.g. 'youtube open pannu', 'paatu podu'): reply in English or Tamil (e.g. 'Opening YouTube' or 'YouTube திறக்கிறேன்'). Do NOT reply in Hindi.
 - If the user query is in English, reply in English.
-- If the user query is in Spanish, French, German, Malayalam, Kannada, Japanese, or any other language, reply in that exact language.
-- Never switch to an unintended language.
+- Always respect the user's language and never switch to Hindi unless Hindi was explicitly spoken.
 
 3. Output Format:
 You must respond ONLY with a valid JSON object in this format:
 {
     "url": "the exact URL or None",
-    "reply": "the answer or confirmation in the user's language"
+    "reply": "the answer or confirmation for the user"
 }"""
 
     models_to_try = [
         "gemini-3.5-flash-lite",
         "gemini-3.5-flash"
     ]
-    prompt_input = f"Spoken Language: {language}\nUser Request: {query}" if language else query
+    if language in ("ta", "Tamil"):
+        prompt_input = f"User Request (Tamil / Tanglish): {query}"
+    elif language:
+        prompt_input = f"Spoken Language: {language}\nUser Request: {query}"
+    else:
+        prompt_input = query
+
     response = None
     last_error = None
     for model_name in models_to_try:
@@ -127,13 +129,14 @@ You must respond ONLY with a valid JSON object in this format:
     is_video_url = url != "None" and ("youtube.com/watch" in url or "youtu.be/" in url)
     if not is_video_url:
         video_markers = (
-            "video", "youtube", "play", "watch", "song", "music", "track",
+            "video", "watch", "song", "music", "track",
             "paatu", "paadal", "padam", "pattu", "geetham", "gana", "gaana",
             "cancion", "musica", "chanson", "lied", "uta",
             "பாட்டு", "பாடல்", "வீடியோ", "படம்",
             "गाना", "गीत", "वीडियो", "పాట", "వీడియో"
         )
-        if any(k in query.lower() for k in video_markers):
+        is_open_homepage = any(w in query.lower() for w in ("open pannu", "open youtube", "open google", "open whatsapp", "open github"))
+        if not is_open_homepage and any(k in query.lower() for k in video_markers):
             raw_text = str(response.text) if response else ""
             yt_urls = re.findall(r'https?://(?:www\.)?youtube\.com/watch\?v=[a-zA-Z0-9_-]+|https?://youtu\.be/[a-zA-Z0-9_-]+', raw_text)
             if yt_urls:
