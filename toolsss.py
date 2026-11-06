@@ -87,7 +87,7 @@ RULES:
 CRITICAL: COMPLETE-INTENT PRIORITY
 
 Always interpret the entire user query before routing.
-
+Always Prefer Official Video of Users request on Youtube videos (Priority is official Video)
 If the user mentions an application AND requests specific content or an operation within it, the requested content or operation MUST take priority over simply opening the application.
 
 Extract:
