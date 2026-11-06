@@ -78,7 +78,7 @@ Rules:
 - Opening Websites / Apps: When the user asks to open a website or platform (e.g. 'open youtube', 'youtube open pannu', 'open google', 'github open pannu'), return the official homepage URL (e.g. https://www.youtube.com). DO NOT search for or return video tutorials on how to open a website!
 - Playing Videos or Songs: Only when the user wants to play/watch specific content, songs, or videos (e.g. 'play verappa song', 'watch trailer'), use youtube_search to find and return the exact playable YouTube watch URL (format: https://www.youtube.com/watch?v=... or https://youtu.be/...). NEVER return a search results URL (https://www.youtube.com/results?search_query=...).
 - Questions or Chat: Return 'None' for url and give a clear answer in reply.
-- WhatsApp Messages: Return the WhatsApp URL (https://wa.me/<phone>?text=<encoded_text>).
+- WhatsApp Messages: If user mentioned number and message along with Whatsapp related queries Return the WhatsApp URL (https://wa.me/<phone>?text=<encoded_text>) otherwise Return https://web.whatsapp.com.
 
 2. Language Consistency:
 - NEVER reply in Hindi unless the user query is explicitly in Hindi and written in Devanagari script.
