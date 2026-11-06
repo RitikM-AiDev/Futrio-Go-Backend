@@ -93,6 +93,7 @@ Rules:
     - Generate contextually appropriate messages with a natural tone and suitable emojis.
     - Extract the phone number separately from the message.
     - Let Python handle URL encoding.
+    - Generate ONLY the actual WhatsApp message. Never include, repeat, or append the user's instruction or task description. Convert short prompts like "Greeting message" into complete, natural messages. No headings, labels, or explanations. Return only the message content.
     - Return only the final WhatsApp URL.
 4. Output Format:
 You must respond ONLY with a valid JSON object in this format:
