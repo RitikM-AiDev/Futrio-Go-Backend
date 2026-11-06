@@ -50,8 +50,6 @@ async def user_query(file: UploadFile, request: Request = None):
     tavily_key = tavily_key or os.getenv("TAVILY_API_KEY") or os.getenv("tavily_api_key")
     serper_key = serper_key or os.getenv("SERPER_API_KEY") or os.getenv("serper_api_key")
 
-    print(f"API Key: {gemini_key}")
-
     contents = await file.read()
     suffix = os.path.splitext(file.filename or "")[1] or ".wav"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_audio:
