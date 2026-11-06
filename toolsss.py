@@ -23,33 +23,6 @@ def tavily_search(query: str, tavily_api_key: str = None):
     return search.invoke(query)
 
 def run_url_generator_agent(query: str, gemini_api_key: str = None, serper_key: str = None, tavily_key: str = None, language: str = None):
-    q_lower = query.lower().strip()
-    is_play_intent = any(w in q_lower for w in ("play", "watch", "song", "paatu", "paadal", "track", "music"))
-    if not is_play_intent:
-        is_open_intent = any(w in q_lower for w in ("open", "go to", "launch", "start", "visit", "pannu"))
-        if is_open_intent:
-            direct_sites = {
-                "youtube": "https://www.youtube.com",
-                "google": "https://www.google.com",
-                "github": "https://github.com",
-                "gmail": "https://mail.google.com",
-                "instagram": "https://www.instagram.com",
-                "twitter": "https://x.com",
-                "reddit": "https://www.reddit.com",
-                "chatgpt": "https://chatgpt.com",
-                "spotify": "https://open.spotify.com",
-                "netflix": "https://www.netflix.com",
-                "amazon": "https://www.amazon.com",
-                "facebook": "https://www.facebook.com",
-                "linkedin": "https://www.linkedin.com"
-            }
-            for site_name, site_url in direct_sites.items():
-                if site_name in q_lower:
-                    reply_text = f"Opening {site_name.capitalize()}."
-                    if language in ("ta", "Tamil"):
-                        reply_text = f"{site_name.capitalize()} திறக்கிறேன்."
-                    return site_url, reply_text
-
     api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("X-API-Key")
     client = genai.Client(api_key=api_key)
 
@@ -204,8 +177,7 @@ Return ONLY valid JSON:
             "பாட்டு", "பாடல்", "வீடியோ", "படம்",
             "गाना", "गीत", "वीडियो", "పాట", "వీడియో"
         )
-        is_open_homepage = any(w in query.lower() for w in ("open pannu", "open youtube", "open google", "open whatsapp", "open github"))
-        if not is_open_homepage and any(k in query.lower() for k in video_markers):
+        if any(k in query.lower() for k in video_markers):
             raw_text = str(response.text) if response else ""
             yt_urls = re.findall(r'https?://(?:www\.)?youtube\.com/watch\?v=[a-zA-Z0-9_-]+|https?://youtu\.be/[a-zA-Z0-9_-]+', raw_text)
             if yt_urls:
