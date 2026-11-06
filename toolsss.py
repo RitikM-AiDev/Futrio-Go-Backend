@@ -34,7 +34,6 @@ def run_url_generator_agent(query: str, gemini_api_key: str = None, serper_key: 
                 "github": "https://github.com",
                 "gmail": "https://mail.google.com",
                 "instagram": "https://www.instagram.com",
-                "whatsapp": "https://web.whatsapp.com",
                 "twitter": "https://x.com",
                 "reddit": "https://www.reddit.com",
                 "chatgpt": "https://chatgpt.com",
@@ -78,15 +77,15 @@ Rules:
 - Opening Websites / Apps: When the user asks to open a website or platform (e.g. 'open youtube', 'youtube open pannu', 'open google', 'github open pannu'), return the official homepage URL (e.g. https://www.youtube.com). DO NOT search for or return video tutorials on how to open a website!
 - Playing Videos or Songs: Only when the user wants to play/watch specific content, songs, or videos (e.g. 'play verappa song', 'watch trailer'), use youtube_search to find and return the exact playable YouTube watch URL (format: https://www.youtube.com/watch?v=... or https://youtu.be/...). NEVER return a search results URL (https://www.youtube.com/results?search_query=...).
 - Questions or Chat: Return 'None' for url and give a clear answer in reply.
-- WhatsApp Messages: If user mentioned number and message along with Whatsapp related queries Return the WhatsApp URL (https://wa.me/<phone>?text=<encoded_text>) otherwise Return https://web.whatsapp.com.
 
 2. Language Consistency:
 - NEVER reply in Hindi unless the user query is explicitly in Hindi and written in Devanagari script.
 - If the user speaks or writes in Tanglish or Tamil (e.g. 'youtube open pannu', 'paatu podu'): reply in English or Tamil (e.g. 'Opening YouTube' or 'YouTube திறக்கிறேன்'). Do NOT reply in Hindi.
 - If the user query is in English, reply in English.
 - Always respect the user's language and never switch to Hindi unless Hindi was explicitly spoken.
-
-3. Output Format:
+3.Query Related to Whatsapp Message (IMPORTANT)
+    - WhatsApp Messages: ##IMPORTANT: If user mentioned number and message along with Whatsapp related queries Return the WhatsApp URL (https://wa.me/<phone>?text=<encoded_text>) otherwise Return https://web.whatsapp.com.
+4. Output Format:
 You must respond ONLY with a valid JSON object in this format:
 {
     "url": "the exact URL or None",
